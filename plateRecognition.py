@@ -57,6 +57,8 @@ while True:
         (x, y) = np.where(mask == 255)
         (topx, topy) = (np.min(x), np.min(y))
         (bottomx, bottomy) = (np.max(x), np.max(y))
+
+        #extraction de la plaque d'immatriculation
         Cropped = img_NdG[topx:bottomx+1, topy:bottomy+1]
 
         text = pytesseract.image_to_string(Cropped, config='--psm 11')
@@ -64,13 +66,9 @@ while True:
         print("Detected license plate Number is:",text)
         img = cv.resize(img_origin,(500,300))
         Cropped = cv.resize(Cropped,(400,200))
+        
         cv.imshow('car',img)
-        cv.imshow('Cropped',Cropped)
-
-    # 4. Affichage
-    #cv.imshow("Flux original", img_origin)
-    #cv.imshow("Niveaux de gris", img_NdG)
-    #cv.imshow("Bords (Canny)", edged)
+        cv.imshow('Plaque d\'immatriculation',Cropped)
 
     # 5. Quitter avec 'q'
     if cv.waitKey(1) & 0xFF == ord('q'):
