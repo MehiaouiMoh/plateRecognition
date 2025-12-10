@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Reconnaissance de Plaque</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f0f0f0; }
+        h1 { margin-top: 20px; }
+        #video-stream { margin-top: 20px; border: 2px solid #333; }
+        #plaques { margin-top: 20px; display: flex; justify-content: center; flex-wrap: wrap; }
+        .plaque { display: inline-block; background: #fff; padding: 10px 20px; margin: 5px;
+                  border-radius: 5px; border: 1px solid #333; font-weight: bold;
+                  box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+    <h1>Reconnaissance de Plaque</h1>
+    <img id="video-stream" src="{{ url_for('video_feed') }}" width="640" height="480">
+    <h2>Dernières plaques détectées :</h2>
+    <div id="plaques"></div>
+
+    <!-- Bouton pour arrêter la vidéo -->
+    <button id="stop-btn" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">Arrêter la vidéo</button>
+
+    <script>
+        // Fonction pour récupérer les plaques toutes les 1s
+        setInterval(async () => {
+            const response = await fetch('/get_plaques');
+            const plaques = await response.json();
+            const plaquesDiv = document.getElementById('plaques');
+            plaquesDiv.innerHTML = '';  // vide avant de réafficher
+            plaques.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'plaque';
+                div.textContent = p;
+                plaquesDiv.appendChild(div);
+            });
+        }, 1000);
+
+        // Bouton pour arrêter le flux vidéo
+        document.getElementById('stop-btn').addEventListener('click', () => {
+            // Supprime le flux vidéo
+            videoStream.src = '';
+            // Stop l’intervalle qui met à jour les plaques
+            clearInterval(intervalPlaques);
+        });
+    </script>
+</body>
+</html>
