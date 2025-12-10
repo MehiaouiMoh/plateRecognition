@@ -16,12 +16,11 @@ if not video.isOpened():
 # 4. Boucle pour lire toutes les images en NdG
 while True:
     ret, frame = video.read()
-    img_origin = cv.resize(frame, (600,400) )
 
     if not ret:
         break  # fin de vidéo
 
-    img_NdG = cv.cvtColor(img_origin, cv.COLOR_BGR2GRAY)
+    img_NdG = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
     # 3. Détection des bords (Canny)
     edged = cv.Canny(img_NdG, 30, 200)
@@ -48,11 +47,11 @@ while True:
         detected = 1
 
     if detected == 1:
-        cv.drawContours(img_origin, [screenCnt], -1, (0, 0, 255), 3)
+        cv.drawContours(frame, [screenCnt], -1, (0, 0, 255), 3)
 
         mask = np.zeros(img_NdG.shape,np.uint8)
         new_image = cv.drawContours(mask,[screenCnt],0,255,-1,)
-        new_image = cv.bitwise_and(img_origin,img_origin,mask=mask)
+        new_image = cv.bitwise_and(frame,frame,mask=mask)
 
         (x, y) = np.where(mask == 255)
         (topx, topy) = (np.min(x), np.min(y))
@@ -64,7 +63,7 @@ while True:
         text = pytesseract.image_to_string(Cropped, config='--psm 11')
         print("programming_fever's License Plate Recognition\n")
         print("Detected license plate Number is:",text)
-        img = cv.resize(img_origin,(500,300))
+        img = cv.resize(frame,(600,400))
         Cropped = cv.resize(Cropped,(400,200))
         
         cv.imshow('car',img)
