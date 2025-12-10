@@ -38,11 +38,21 @@
         }, 1000);
 
         // Bouton pour arrêter le flux vidéo
-        document.getElementById('stop-btn').addEventListener('click', () => {
+        const videoStream = document.getElementById('video-stream');
+        const stopBtn = document.getElementById('stop-btn');
+
+        stopBtn.addEventListener('click', async () => {
             // Supprime le flux vidéo
             videoStream.src = '';
-            // Stop l’intervalle qui met à jour les plaques
-            clearInterval(intervalPlaques);
+
+            // Envoie la requête POST pour stopper le serveur
+            await fetch('/stop_server', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'stop' })
+            });
         });
     </script>
 </body>

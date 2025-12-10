@@ -1,10 +1,11 @@
 # Importation des modules nécessaires
-from flask import Flask, render_template, Response, jsonify  # Flask pour le serveur web
+from flask import Flask, render_template, Response, jsonify, request  # Flask pour le serveur web
 import cv2 as cv             # OpenCV pour la capture et traitement vidéo
 import imutils               # Utilitaire pour gérer les contours facilement
 import pytesseract           # OCR pour reconnaître le texte (plaques)
 import re                    # Expressions régulières pour filtrer le format des plaques
 import time                  # Gestion du temps pour éviter les doublons
+import os                    # Pour arrêter le serveur
 
 # ---------- INITIALISATION DE FLASK ----------
 app = Flask(__name__)  # Création de l'application Flask
@@ -16,7 +17,7 @@ dernier_temps = 0     # Stocke le temps de détection pour la temporisation
 delai_capture = 3     # Délai minimum en secondes avant de réenregistrer une même plaque
 
 # Initialisation de la capture vidéo (webcam par défaut)
-video = cv.VideoCapture(0)
+video = cv.VideoCapture(0)  # Remplacer par 0 pour la webcam
 
 # Liste globale pour stocker les plaques détectées (sera renvoyée au front-end)
 plaques_detectees = []
@@ -131,6 +132,19 @@ def get_plaques():
     """
     return jsonify(plaques_detectees)
 
+@app.route('/stop_server', methods=['POST'])
+def stop_server():
+    """
+    Arrête le serveur Flask si le texte reçu est 'stop'.
+    """
+    data = request.get_json()  # Récupère les données JSON envoyées
+    if data and data.get("action") == "stop":
+        print("Arrêt du serveur demandé...")
+        os._exit(0)  # Termine le serveur immédiatement
+        return "Arrêt du serveur", 200
+    return "Action non reconnue", 400
+
 # ---------- LANCEMENT DE L'APPLICATION ----------
 if __name__ == "__main__":
     app.run(debug=True)  # Démarre le serveur Flask en mode debug
+    video.release()  # Libère la caméra à la fin
