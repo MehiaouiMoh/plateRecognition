@@ -1,78 +1,99 @@
-import sys
-
 import cv2 as cv
 import numpy as np
 import imutils
 import pytesseract
+import re
+import time
 
-## charger une video
+# ---------- REGEX PLAQUE FR ----------
+regex_plaque = re.compile(r"[A-Z]{2}-?[0-9]{3}-?[A-Z]{2}")
+
+# Anti-duplicate
+dernier_texte = ""
+dernier_temps = 0
+delai_capture = 3  # secondes
+
 video = cv.VideoCapture(0)
 
-# Vérifier que la vidéo est bien chargée
-if not video.isOpened():
-    print("Erreur : impossible de charger la vidéo.")
-
-
-# 4. Boucle pour lire toutes les images en NdG
 while True:
     ret, frame = video.read()
-
     if not ret:
-        break  # fin de vidéo
+        break
 
-    img_NdG = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    img = cv.resize(frame, (640, 480))
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
-    # 3. Détection des bords (Canny)
-    edged = cv.Canny(img_NdG, 30, 200)
+    # ----------- Prétraitement amélioré -----------
+    blur = cv.GaussianBlur(gray, (5, 5), 0)
+    sobelx = cv.Sobel(blur, cv.CV_8U, 1, 0, ksize=3)
+    _, thresh = cv.threshold(sobelx, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU)
 
-    contours=cv.findContours(edged.copy(),cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
+    kernel = cv.getStructuringElement(cv.MORPH_RECT, (17, 5))
+    morph = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
+
+    contours = cv.findContours(morph, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     contours = imutils.grab_contours(contours)
-    contours = sorted(contours,key=cv.contourArea, reverse = True)[:10]
-    screenCnt = None
+
+    plaque_trouvee = False
 
     for c in contours:
-        # approximate the contour
-        peri = cv.arcLength(c, True)
-        approx = cv.approxPolyDP(c, 0.018 * peri, True)
-        # if our approximated contour has four points, then
-        # we can assume that we have found our screen
-        if len(approx) == 4:
-            screenCnt = approx
-            break
-    
-    if screenCnt is None:
-        detected = 0
-        print ("No contour detected")
-    else:
-        detected = 1
+        x, y, w, h = cv.boundingRect(c)
 
-    if detected == 1:
-        cv.drawContours(frame, [screenCnt], -1, (0, 0, 255), 3)
+        # ----------- Filtres plaque assouplis -----------
+        ratio = w / float(h)
+        if ratio < 1.2 or ratio > 6.5:
+            continue
 
-        mask = np.zeros(img_NdG.shape,np.uint8)
-        new_image = cv.drawContours(mask,[screenCnt],0,255,-1,)
-        new_image = cv.bitwise_and(frame,frame,mask=mask)
+        if w < 80 or h < 20:        # plus permissif
+            continue
 
-        (x, y) = np.where(mask == 255)
-        (topx, topy) = (np.min(x), np.min(y))
-        (bottomx, bottomy) = (np.max(x), np.max(y))
+        if w > 500:                 # éviter détecter tout le téléphone
+            continue
 
-        #extraction de la plaque d'immatriculation
-        Cropped = img_NdG[topx:bottomx+1, topy:bottomy+1]
+        # Plaque candidate détectée → extraction
+        plaque_trouvee = True
+        cv.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-        text = pytesseract.image_to_string(Cropped, config='--psm 11')
-        print("programming_fever's License Plate Recognition\n")
-        print("Detected license plate Number is:",text)
-        img = cv.resize(frame,(600,400))
-        Cropped = cv.resize(Cropped,(400,200))
-        
-        cv.imshow('car',img)
-        cv.imshow('Plaque d\'immatriculation',Cropped)
+        Cropped = gray[y:y + h, x:x + w]
 
-    # 5. Quitter avec 'q'
+        # ----------- OCR amélioré -----------
+        config = r'--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-'
+        texte = pytesseract.image_to_string(Cropped, config=config)
+
+        texte = texte.strip().replace(" ", "").upper()
+
+        # Ignorer si très court
+        if len(texte) < 5:
+            continue
+
+        # ----------- Vérification regex FR -----------
+        if not regex_plaque.search(texte):
+            continue
+
+        # ----------- Anti-duplicate -----------
+
+        maintenant = time.time()
+        if texte != dernier_texte or (maintenant - dernier_temps) > delai_capture:
+            print("Plaque détectée :", texte)
+            dernier_texte = texte
+            dernier_temps = maintenant
+
+        cv.putText(img, texte, (x, y - 10), cv.FONT_HERSHEY_SIMPLEX,
+                   0.8, (0, 255, 0), 2)
+
+        # Affichage plaque extraite
+        cv.imshow("Plaque", cv.resize(Cropped, (350, 120)))
+
+        break  # on prend la 1ère plaque valable
+
+    if not plaque_trouvee:
+        cv.putText(img, "Aucune plaque detectee", (10, 20),
+                   cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+
+    cv.imshow("Detection", img)
+
     if cv.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Libérer les ressources
 video.release()
 cv.destroyAllWindows()
