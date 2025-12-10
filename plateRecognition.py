@@ -1,9 +1,10 @@
-import cv2 as cv
-import numpy as np
-import imutils
-import pytesseract
 import re
 import time
+
+import cv2 as cv
+import imutils
+import numpy as np
+import pytesseract
 
 # ---------- REGEX PLAQUE FR ----------
 regex_plaque = re.compile(r"[A-Z]{2}-?[0-9]{3}-?[A-Z]{2}")
